@@ -1,0 +1,6 @@
+{
+  "name": "CallGuard Screener",
+  "description": "A privacy-focused native Android call screening and spam blocking app using CallScreeningService and Room SQLite database.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
