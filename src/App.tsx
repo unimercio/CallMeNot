@@ -29,8 +29,10 @@ import {
   ShieldAlert,
   Sliders,
   LogOut,
-  Moon
+  Moon,
+  Rocket
 } from "lucide-react";
+import { DeploymentGuide } from "./components/DeploymentGuide";
 
 // Types for Simulator State
 interface BlacklistItem {
@@ -549,8 +551,9 @@ dependencies {
 };
 
 export default function App() {
-  // --- STATE FOR WEB EMULATOR AND LOGS ---
-  const [activeTab, setActiveTab] = useState<"dashboard" | "blacklist" | "logs" | "settings" | "help">("dashboard");
+  // --- STATE FOR WEB EMULATOR, VIEW MODE AND LOGS ---
+  const [mainViewMode, setMainViewMode] = useState<"app" | "deployment">("app");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "blacklist" | "logs" | "settings" | "help" | "deploy">("dashboard");
   const [roleHeld, setRoleHeld] = useState(true);
   const [permissionsGranted, setPermissionsGranted] = useState(true);
   
@@ -808,12 +811,39 @@ export default function App() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+              <button
+                onClick={() => setMainViewMode("app")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                  mainViewMode === "app"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Smartphone className="h-4 w-4" />
+                <span>Live Simulator</span>
+              </button>
+              
+              <button
+                onClick={() => setMainViewMode("deployment")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                  mainViewMode === "deployment"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Rocket className="h-4 w-4" />
+                <span>Deployment Guide</span>
+              </button>
+            </div>
+
             <a 
               href="#code-explorer"
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/10 transition-colors cursor-pointer"
+              onClick={() => setMainViewMode("app")}
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-2 border border-slate-700 transition-colors cursor-pointer"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-4 w-4 text-blue-400" />
               Browse Kotlin Source
             </a>
           </div>
@@ -821,9 +851,12 @@ export default function App() {
       </header>
 
       {/* CORE GRID LAYOUT */}
-      <main className="max-w-7xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* LEFT COLUMN: INTERACTIVE ANDROID EMULATOR (Col-span 5) */}
+      <main className="max-w-7xl mx-auto px-8 py-8">
+        {mainViewMode === "deployment" ? (
+          <DeploymentGuide onBackToApp={() => setMainViewMode("app")} />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* LEFT COLUMN: INTERACTIVE ANDROID EMULATOR (Col-span 5) */}
         <div className="lg:col-span-5 flex flex-col items-center justify-start">
           <div className="text-center mb-4">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-blue-400 flex items-center justify-center gap-2">
@@ -1528,7 +1561,9 @@ export default function App() {
           </div>
 
         </div>
-      </main>
+      </div>
+    )}
+  </main>
 
       {/* FOOTER INSTRUCTIONS */}
       <footer className="border-t border-slate-800 bg-[#0B1222] py-8 px-6 mt-12 text-center text-slate-400">
