@@ -5,9 +5,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'ci/latest-android-build.json'
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -35,6 +40,7 @@ jobs:
 
       - name: Build Debug APK
         id: gradle_build
+        continue-on-error: true
         working-directory: android
         shell: bash
         run: |
@@ -50,7 +56,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Debug APK Artifact
-        if: success()
+        if: steps.gradle_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: CallGuard-debug-apk
@@ -77,3 +83,42 @@ jobs:
             grep -E -m 20 "(^e: |FAILURE:|Caused by:|Execution failed for task|Could not resolve|error:)" gradle-build.log >> "$GITHUB_STEP_SUMMARY" || true
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Publish Latest Build Status
+        if: always() && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          BUILD_OUTCOME: ${{ steps.gradle_build.outcome }}
+        run: |
+          mkdir -p ci
+          FIRST_ERROR=$(grep -E -m 1 "(^e: |FAILURE:|Caused by:|Execution failed for task|Could not resolve|error:)" gradle-build.log 2>/dev/null || true)
+          export FIRST_ERROR
+          python - <<'PY'
+          import json, os
+          outcome = os.environ.get('BUILD_OUTCOME', 'unknown')
+          data = {
+              'workflow': 'Android Build & APK Generator',
+              'commit_sha': os.environ['GITHUB_SHA'],
+              'branch': os.environ['GITHUB_REF_NAME'],
+              'run_id': int(os.environ['GITHUB_RUN_ID']),
+              'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'run_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              'result': 'success' if outcome == 'success' else 'failure',
+              'apk_artifact': 'CallGuard-debug-apk' if outcome == 'success' else None,
+              'diagnostic_artifact': 'CallGuard-gradle-build-log',
+              'first_error': os.environ.get('FIRST_ERROR') or None,
+          }
+          with open('ci/latest-android-build.json', 'w') as f:
+              json.dump(data, f, indent=2)
+              f.write('\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci/latest-android-build.json
+          git diff --cached --quiet && exit 0
+          git commit -m "ci: update latest Android build status [skip ci]"
+          git push
+
+      - name: Fail Workflow If Gradle Failed
+        if: steps.gradle_build.outcome != 'success'
+        run: exit 1
