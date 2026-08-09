@@ -34,12 +34,46 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Build Debug APK
+        id: gradle_build
         working-directory: android
-        run: gradle assembleDebug --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle assembleDebug --stacktrace --console=plain 2>&1 | tee ../gradle-build.log
+
+      - name: Upload Gradle Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CallGuard-gradle-build-log
+          path: gradle-build.log
+          if-no-files-found: warn
 
       - name: Upload Debug APK Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: CallGuard-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Write Build Summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## CallMeNot Android Build" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch/ref: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.gradle_build.outcome }}" = "success" ]; then
+            echo "- Result: ✅ BUILD SUCCESSFUL" >> "$GITHUB_STEP_SUMMARY"
+            echo "- APK artifact: \`CallGuard-debug-apk\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Result: ❌ BUILD FAILED" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Diagnostic artifact: \`CallGuard-gradle-build-log\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### First likely error lines" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            grep -E -m 20 "(^e: |FAILURE:|Caused by:|Execution failed for task|Could not resolve|error:)" gradle-build.log >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
