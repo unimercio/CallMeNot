@@ -1,7 +1,5 @@
 package com.enrique.callguard.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,12 +8,12 @@ import com.enrique.callguard.data.BlacklistItem
 import com.enrique.callguard.data.ScreenedCallLog
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class CallGuardViewModel(private val repository: CallGuardRepository) : ViewModel() {
 
-    // UI States mirrored from repository Flows
     val blacklist: StateFlow<List<BlacklistItem>> = repository.blacklistFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -27,7 +25,6 @@ class CallGuardViewModel(private val repository: CallGuardRepository) : ViewMode
     val silenceUnknowns: StateFlow<Boolean> = repository.silenceUnknowns
     val aggressiveMode: StateFlow<Boolean> = repository.aggressiveMode
 
-    // Business actions
     fun toggleScreeningEnabled(enabled: Boolean) {
         repository.setScreeningEnabled(enabled)
     }
@@ -62,21 +59,11 @@ class CallGuardViewModel(private val repository: CallGuardRepository) : ViewMode
         }
     }
 
-    // Dynamic quick statistics for dashboard
     val totalBlockedCount: StateFlow<Int> = repository.callLogFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-        .let { flow ->
-            val countFlow = kotlinx.coroutines.flow.map { list ->
-                list.count { it.actionTaken == "REJECTED" }
-            }
-            // In real code we use stateIn, let's keep it simple or do local transformation
-            // Let's implement statistics mapping dynamically in UI or inside state flows.
-            // We'll calculate it on-the-fly in Compose to avoid double states, or compile standard StateFlows.
-            repository.isScreeningEnabled // placeholder, we'll map below
-        }
+        .map { list -> list.count { it.actionTaken == "REJECTED" } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 }
 
-// Factory to inject Repository into ViewModel without Hilt
 class CallGuardViewModelFactory(private val repository: CallGuardRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CallGuardViewModel::class.java)) {
