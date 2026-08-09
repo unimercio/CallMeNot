@@ -1,0 +1,12 @@
+{
+  "workflow": "Android Build & APK Generator",
+  "commit_sha": "2c772e9747a3859dcb7fc878b51b63d0d2b216e0",
+  "branch": "main",
+  "run_id": 31292703646,
+  "run_attempt": 1,
+  "run_url": "https://github.com/unimercio/CallMeNot/actions/runs/31292703646",
+  "result": "failure",
+  "apk_artifact": null,
+  "diagnostic_artifact": "CallGuard-gradle-build-log",
+  "first_error": "FAILURE: Build failed with an exception."
+}
