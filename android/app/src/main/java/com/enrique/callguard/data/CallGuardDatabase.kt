@@ -11,6 +11,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 // ==========================================
@@ -19,7 +21,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "blacklist")
 data class BlacklistItem(
-    @PrimaryKey val number: String, // Normalized E.164 phone number
+    @PrimaryKey val number: String,
     val reason: String = "Blocked Spam",
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -29,9 +31,14 @@ data class ScreenedCallLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val number: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val actionTaken: String, // "REJECTED", "SILENCED", "PASSED"
-    val reason: String, // e.g., "In Blacklist", "STIR/SHAKEN Verification Failed", "Silence Unknowns enabled"
-    val verificationStatus: Int // STIR/SHAKEN status, e.g. Connection verification status
+    val actionTaken: String,
+    val reason: String,
+    val verificationStatus: Int,
+    val decisionLatencyMs: Long = 0,
+    val isInContacts: Boolean? = null,
+    val bypassReason: String? = null,
+    val userVerdict: String? = null, // "SPAM", "LEGITIMATE", "UNSURE"
+    val responseSent: Boolean = true
 )
 
 // ==========================================
@@ -70,6 +77,9 @@ interface CallLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: ScreenedCallLog)
 
+    @Query("UPDATE screened_call_logs SET userVerdict = :verdict WHERE id = :id")
+    suspend fun setUserVerdict(id: Long, verdict: String?)
+
     @Query("DELETE FROM screened_call_logs")
     suspend fun clearAll()
 }
@@ -78,7 +88,7 @@ interface CallLogDao {
 // ROOM DATABASE CLASS
 // ==========================================
 
-@Database(entities = [BlacklistItem::class, ScreenedCallLog::class], version = 1, exportSchema = false)
+@Database(entities = [BlacklistItem::class, ScreenedCallLog::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun blacklistDao(): BlacklistDao
     abstract fun callLogDao(): CallLogDao
@@ -87,6 +97,16 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE screened_call_logs ADD COLUMN decisionLatencyMs INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE screened_call_logs ADD COLUMN isInContacts INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE screened_call_logs ADD COLUMN bypassReason TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE screened_call_logs ADD COLUMN userVerdict TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE screened_call_logs ADD COLUMN responseSent INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -94,6 +114,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "call_guard_database"
                 )
+                .addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
