@@ -53,6 +53,12 @@ class CallGuardViewModel(private val repository: CallGuardRepository) : ViewMode
         }
     }
 
+    fun setCallVerdict(id: Long, verdict: String?) {
+        viewModelScope.launch {
+            repository.setCallVerdict(id, verdict)
+        }
+    }
+
     fun clearCallLogs() {
         viewModelScope.launch {
             repository.clearCallLogs()

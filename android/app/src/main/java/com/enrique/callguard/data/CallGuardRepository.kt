@@ -18,7 +18,6 @@ class CallGuardRepository(private val context: Context) {
         Context.MODE_PRIVATE
     )
 
-    // Keys for settings
     companion object {
         const val KEY_SCREENING_ENABLED = "screening_enabled"
         const val KEY_BLOCK_VERIFIED_SPAM = "block_verified_spam"
@@ -26,7 +25,6 @@ class CallGuardRepository(private val context: Context) {
         const val KEY_AGGRESSIVE_MODE = "aggressive_mode"
     }
 
-    // Settings flows
     private val _isScreeningEnabled = MutableStateFlow(sharedPrefs.getBoolean(KEY_SCREENING_ENABLED, true))
     val isScreeningEnabled: StateFlow<Boolean> = _isScreeningEnabled.asStateFlow()
 
@@ -39,7 +37,6 @@ class CallGuardRepository(private val context: Context) {
     private val _aggressiveMode = MutableStateFlow(sharedPrefs.getBoolean(KEY_AGGRESSIVE_MODE, false))
     val aggressiveMode: StateFlow<Boolean> = _aggressiveMode.asStateFlow()
 
-    // Database access
     val blacklistFlow: Flow<List<BlacklistItem>> = blacklistDao.getAllFlow()
     val callLogFlow: Flow<List<ScreenedCallLog>> = callLogDao.getAllLogsFlow()
 
@@ -57,26 +54,43 @@ class CallGuardRepository(private val context: Context) {
 
     suspend fun isBlacklisted(number: String): Boolean {
         val normalizedNumber = normalizeNumber(number)
-        return blacklistDao.findByNumber(normalizedNumber) != null || 
+        return blacklistDao.findByNumber(normalizedNumber) != null ||
                blacklistDao.findByNumber(number) != null
     }
 
-    suspend fun addCallLog(number: String, actionTaken: String, reason: String, verificationStatus: Int) {
+    suspend fun addCallLog(
+        number: String,
+        actionTaken: String,
+        reason: String,
+        verificationStatus: Int,
+        decisionLatencyMs: Long = 0,
+        isInContacts: Boolean? = null,
+        bypassReason: String? = null,
+        responseSent: Boolean = true
+    ) {
         callLogDao.insert(
             ScreenedCallLog(
                 number = number,
                 actionTaken = actionTaken,
                 reason = reason,
-                verificationStatus = verificationStatus
+                verificationStatus = verificationStatus,
+                decisionLatencyMs = decisionLatencyMs,
+                isInContacts = isInContacts,
+                bypassReason = bypassReason,
+                responseSent = responseSent
             )
         )
+    }
+
+    suspend fun setCallVerdict(id: Long, verdict: String?) {
+        require(verdict == null || verdict in setOf("SPAM", "LEGITIMATE", "UNSURE"))
+        callLogDao.setUserVerdict(id, verdict)
     }
 
     suspend fun clearCallLogs() {
         callLogDao.clearAll()
     }
 
-    // Settings mutations
     fun setScreeningEnabled(enabled: Boolean) {
         sharedPrefs.edit().putBoolean(KEY_SCREENING_ENABLED, enabled).apply()
         _isScreeningEnabled.value = enabled
@@ -97,7 +111,6 @@ class CallGuardRepository(private val context: Context) {
         _aggressiveMode.value = enabled
     }
 
-    // Helper to normalize phone numbers
     fun normalizeNumber(number: String): String {
         return number.replace(Regex("[^0-9+]"), "")
     }

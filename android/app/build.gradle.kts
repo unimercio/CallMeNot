@@ -10,11 +10,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.enrique.callguard"
+        applicationId = "com.enrique.callguard.lab"
         minSdk = 26 // CallScreeningService is fully available and stable from Oreo (SDK 26)
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "1.0.0-lab"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
