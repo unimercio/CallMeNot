@@ -13,7 +13,7 @@
     <application
         android:allowBackup="true"
         android:icon="@android:drawable/ic_menu_call"
-        android:label="CallGuard"
+        android:label="CallGuard Lab"
         android:roundIcon="@android:drawable/ic_menu_call"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
@@ -21,7 +21,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="CallGuard Screener"
+            android:label="CallGuard Lab"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,7 +29,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Registrating CallScreeningService with the system.
+        <!-- Register CallScreeningService with the system.
              MUST be protected by android.permission.BIND_SCREENING_SERVICE.
              The system uses this service to screen incoming calls in real-time. -->
         <service
